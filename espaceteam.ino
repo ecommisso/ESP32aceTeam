@@ -30,6 +30,10 @@ bool redrawProgress = true;
 
 int lastRedrawTime = 0;
 
+// MOD: different game rooms
+int roomNo;
+const int NUM_ROOMS = 3;
+
 //we could also use xSemaphoreGiveFromISR and its associated fxns, but this is fine
 volatile bool scheduleCmdAsk = true;
 hw_timer_t * askRequestTimer = NULL;
@@ -128,6 +132,9 @@ void sentCallback(const uint8_t *macAddr, esp_now_send_status_t status)
 void broadcast(const String &message)
 // Emulates a broadcast
 {
+
+  char *message_to_send;
+  sprintf("%d %s", std::to_string(roomNo).c_str(), message_to_send);
   // Broadcast a message to every device in range
   uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
   esp_now_peer_info_t peerInfo = {};
@@ -137,7 +144,7 @@ void broadcast(const String &message)
     esp_now_add_peer(&peerInfo);
   }
   // Send message
-  esp_err_t result = esp_now_send(broadcastAddress, (const uint8_t *)message.c_str(), message.length());
+  esp_err_t result = esp_now_send(broadcastAddress, (const uint8_t *)message_to_send, message.length());
 
 }
 
@@ -161,6 +168,10 @@ void IRAM_ATTR onAskExpireTimer(){
 
 void espnowSetup() {
   // Set ESP32 in STA mode to begin with
+
+  // pick a random number for the room
+  roomNo = rand() % NUM_ROOMS;
+
   delay(500);
   WiFi.mode(WIFI_STA);
   Serial.println("ESP-NOW Broadcast Demo");
@@ -254,7 +265,7 @@ void loop()
 {
   
   if (scheduleCmd1Send){
-    broadcast("D: "+cmd1);
+    broadcast(roomNo + "D: "+cmd1);
     scheduleCmd1Send = false;
   }
   if (scheduleCmd2Send){
