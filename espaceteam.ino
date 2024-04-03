@@ -251,7 +251,6 @@ String genCommand(){
 }
 
 void drawControls(){
-
   cmd1 = genCommand();
   cmd2 = genCommand();
   cmd1.indexOf(' ');
@@ -259,6 +258,14 @@ void drawControls(){
   tft.drawString(cmd1.substring(cmd1.indexOf(' ')+1), 0, 90+lineHeight, 2);
   tft.drawString("B2: " + cmd2.substring(0, cmd2.indexOf(' ')), 0, 170, 2);
   tft.drawString(cmd2.substring(cmd2.indexOf(' ')+1), 0, 170+lineHeight, 2);
+}
+
+void drawTeam() {
+  /*
+  * Function for showing the user which room they are in.
+  */
+
+  tft.drawString("Room " + roomNo);
 }
 
 void loop()
@@ -269,17 +276,17 @@ void loop()
     scheduleCmd1Send = false;
   }
   if (scheduleCmd2Send){
-    broadcast("D: "+cmd2);
+    broadcast(roomNo + "D: "+cmd2);
     scheduleCmd2Send = false;
   }
   if (scheduleCmdAsk) {
     String cmdAsk = random(2) ? cmd1 : cmd2;
-    broadcast("A: "+cmdAsk);
+    broadcast(roomNo + "A: "+cmdAsk);
     scheduleCmdAsk = false;
   }
   if (askExpired) {
     progress = max(0, progress - 1);
-    broadcast(String(progress));
+    broadcast(roomNo + String(progress));
     //tft.fillRect(0, 0, 135, 90, TFT_RED);
     cmdRecvd = waitingCmd;
     redrawCmdRecvd = true;
