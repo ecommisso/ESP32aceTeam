@@ -93,28 +93,30 @@ void receiveCallback(const uint8_t *macAddr, const uint8_t *data, int dataLen)
 
   // Send Debug log message to the serial port
   Serial.printf("Received message from: %s \n%s\n", macStr, buffer);
-  if (recvd[0] == 'A' && cmdRecvd == waitingCmd && random(100) < 30) //only take an ask if you don't have an ask already and only take it XX% of the time
-  {
-    recvd.remove(0,3);
-    cmdRecvd = recvd;
-    redrawCmdRecvd = true;
-    timerStart(askExpireTimer); //once you get an ask, a timer starts
-  }
-  else if (recvd[0] == 'D' && recvd.substring(3) == cmdRecvd)
-  {
-    timerWrite(askExpireTimer, 0);
-    timerStop(askExpireTimer);
-    cmdRecvd = waitingCmd;
-    progress = progress + 1;
-    broadcast("P: " + String(progress));
-    redrawCmdRecvd = true;
-    
-  }
-  else if (recvd[0] == 'P')
-  {
-    recvd.remove(0,3);
-    progress = recvd.toInt();
-    redrawProgress = true;
+  if (recvd[0] == std::to_string(roomNo).c_str()) {
+    if (recvd[1] == 'A' && cmdRecvd == waitingCmd && random(100) < 30) //only take an ask if you don't have an ask already and only take it XX% of the time
+    {
+      recvd.remove(0,4);
+      cmdRecvd = recvd;
+      redrawCmdRecvd = true;
+      timerStart(askExpireTimer); //once you get an ask, a timer starts
+    }
+    else if (recvd[1] == 'D' && recvd.substring(4) == cmdRecvd)
+    {
+      timerWrite(askExpireTimer, 0);
+      timerStop(askExpireTimer);
+      cmdRecvd = waitingCmd;
+      progress = progress + 1;
+      broadcast("P: " + String(progress));
+      redrawCmdRecvd = true;
+      
+    }
+    else if (recvd[1] == 'P')
+    {
+      recvd.remove(0,4);
+      progress = recvd.toInt();
+      redrawProgress = true;
+    }
   }
 }
 
