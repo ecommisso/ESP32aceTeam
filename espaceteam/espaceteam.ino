@@ -52,6 +52,10 @@ int lineHeight = 30;
 #define BUTTON_LEFT 0
 #define BUTTON_RIGHT 35
 
+int numLevels = 3;
+int askTime = 5;
+int goal = 100;
+
 
 void formatMacAddress(const uint8_t *macAddr, char *buffer, int maxLength)
 // Formats MAC Address
@@ -107,6 +111,20 @@ void receiveCallback(const uint8_t *macAddr, const uint8_t *data, int dataLen)
       timerStop(askExpireTimer);
       cmdRecvd = waitingCmd;
       progress = progress + 1;
+      
+      // code for the sender of the progress message to update their ask
+      if (progress == (int)(goal / numLevels) || progress == (int)(2 * goal / numLevels)) // if progress is 1/3 or 2/3 of the way
+      {
+        // speed up game but ensure askTime and expireLength don't go below 1 second
+        askTime = max(1, askTime * 2 / 3); 
+        expireLength = max(1, expireLength * 2 / 3); 
+        timerAlarmWrite(askRequestTimer, askTime * 1000000, true); // send out an ask every askTime seconds
+        timerAlarmWrite(askExpireTimer, expireLength * 1000000, true); // set expiration time to expireLength seconds
+        Serial.println("ask time going downnn");
+        Serial.println(askTime);
+        Serial.println(expireLength);
+      }
+
       broadcast("P: " + String(progress));
       redrawCmdRecvd = true;
     }
@@ -115,6 +133,19 @@ void receiveCallback(const uint8_t *macAddr, const uint8_t *data, int dataLen)
       recvd.remove(0,5);
       progress = recvd.toInt();
       redrawProgress = true;
+
+      // code for all the receivers of the progress message to update their ask time
+      if (progress == (int)(goal / numLevels) || progress == (int)(2 * goal / numLevels)) // if progress is 1/3 or 2/3 of the way
+      {
+        // speed up game but ensure askTime and expireLength don't go below 1 second
+        askTime = max(1, askTime * 2 / 3); 
+        expireLength = max(1, expireLength * 2 / 3); 
+        timerAlarmWrite(askRequestTimer, askTime * 1000000, true); // send out an ask every askTime seconds
+        timerAlarmWrite(askExpireTimer, expireLength * 1000000, true); // set expiration time to expireLength seconds
+        Serial.println("ask time going downnn");
+        Serial.println(askTime);
+        Serial.println(expireLength);
+      }
     }
   }
   else {
@@ -223,7 +254,7 @@ void textSetup(){
 void timerSetup(){
   askRequestTimer = timerBegin(0, 80, true);
   timerAttachInterrupt(askRequestTimer, &onAskReqTimer, true);
-  timerAlarmWrite(askRequestTimer, 5*1000000, true);//send out an ask every 5 secs
+  timerAlarmWrite(askRequestTimer, askTime*1000000, true); //end out an ask every askTime seconds
   timerAlarmEnable(askRequestTimer);
 
   askExpireTimer = timerBegin(1, 80, true);
@@ -313,7 +344,7 @@ void loop()
     tft.drawString(cmdRecvd.substring(cmdRecvd.indexOf(' ')+1), 0, 0+lineHeight, 2);
     redrawCmdRecvd = false;
     
-    if (progress >= 100) {
+    if (progress >= goal) {
       tft.fillScreen(TFT_BLUE);
       tft.setTextSize(3);
       tft.setTextColor(TFT_WHITE, TFT_BLUE);
