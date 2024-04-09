@@ -30,6 +30,9 @@ bool redrawProgress = true;
 
 int lastRedrawTime = 0;
 
+int roomNo;
+const int NUM_ROOMS = 3;
+
 //we could also use xSemaphoreGiveFromISR and its associated fxns, but this is fine
 volatile bool scheduleCmdAsk = true;
 hw_timer_t * askRequestTimer = NULL;
@@ -93,14 +96,14 @@ void receiveCallback(const uint8_t *macAddr, const uint8_t *data, int dataLen)
 
   // Send Debug log message to the serial port
   Serial.printf("Received message from: %s \n%s\n", macStr, buffer);
-  if (recvd[0] == 'A' && cmdRecvd == waitingCmd && random(100) < 30) //only take an ask if you don't have an ask already and only take it XX% of the time
+  if (recvd[2] == 'A' && cmdRecvd == waitingCmd && random(100) < 30) //only take an ask if you don't have an ask already and only take it XX% of the time
   {
-    recvd.remove(0,3);
+    recvd.remove(0,5);
     cmdRecvd = recvd;
     redrawCmdRecvd = true;
     timerStart(askExpireTimer); //once you get an ask, a timer starts
   }
-  else if (recvd[0] == 'D' && recvd.substring(3) == cmdRecvd)
+  else if (recvd[2] == 'D' && recvd.substring(3) == cmdRecvd)
   {
     timerWrite(askExpireTimer, 0);
     timerStop(askExpireTimer);
@@ -124,9 +127,9 @@ void receiveCallback(const uint8_t *macAddr, const uint8_t *data, int dataLen)
     redrawCmdRecvd = true;
     
   }
-  else if (recvd[0] == 'P')
+  else if (recvd[2] == 'P')
   {
-    recvd.remove(0, 3);
+    recvd.remove(0, 5);
     progress = recvd.toInt();
     redrawProgress = true;
     // code for all the receivers of the progress message to update their ask time
@@ -141,6 +144,9 @@ void receiveCallback(const uint8_t *macAddr, const uint8_t *data, int dataLen)
       Serial.println(askTime);
       Serial.println(expireLength);
     }
+  }
+  else {
+    Serial.printf("message room %d does not match %d\n", int(recvd.charAt(0))-48, roomNo);
   }
 }
 
@@ -158,6 +164,8 @@ void sentCallback(const uint8_t *macAddr, esp_now_send_status_t status)
 void broadcast(const String &message)
 // Emulates a broadcast
 {
+  char message_to_send[message.length() + 5];
+  sprintf(message_to_send, "%d %s", roomNo, message.c_str());  
   // Broadcast a message to every device in range
   uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
   esp_now_peer_info_t peerInfo = {};
@@ -167,7 +175,7 @@ void broadcast(const String &message)
     esp_now_add_peer(&peerInfo);
   }
   // Send message
-  esp_err_t result = esp_now_send(broadcastAddress, (const uint8_t *)message.c_str(), message.length());
+  esp_err_t result = esp_now_send(broadcastAddress, (const uint8_t *)message_to_send, strlen(message_to_send));
 
 }
 
@@ -232,6 +240,7 @@ void textSetup(){
   tft.setTextSize(2);
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_GREEN, TFT_BLACK);
+  drawRoomNo();
   drawControls();
 
   cmdRecvd = waitingCmd;
@@ -249,11 +258,13 @@ void timerSetup(){
   timerAlarmWrite(askExpireTimer, expireLength*1000000, true);
   timerAlarmEnable(askExpireTimer);
   timerStop(askExpireTimer);
-
+  Serial.println("timer successfully setup");
 }
 void setup()
 {
   Serial.begin(115200);
+  roomNo = rand() % NUM_ROOMS;
+  Serial.println(roomNo);
 
   textSetup();
   buttonSetup();
@@ -278,6 +289,18 @@ void drawControls(){
   tft.drawString(cmd1.substring(cmd1.indexOf(' ')+1), 0, 90+lineHeight, 2);
   tft.drawString("B2: " + cmd2.substring(0, cmd2.indexOf(' ')), 0, 170, 2);
   tft.drawString(cmd2.substring(cmd2.indexOf(' ')+1), 0, 170+lineHeight, 2);
+}
+
+void drawRoomNo() {
+  /*
+  * Function for showing the user which room they are in.
+  */
+  
+  tft.fillScreen(TFT_BLACK);
+  tft.print("Room: ");
+  tft.println(roomNo);
+  delay(3000);
+  tft.fillScreen(TFT_BLACK);
 }
 
 void loop()
