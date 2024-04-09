@@ -30,6 +30,10 @@ bool redrawProgress = true;
 
 int lastRedrawTime = 0;
 
+// MOD: different game rooms
+int roomNo;
+const int NUM_ROOMS = 3;
+
 //we could also use xSemaphoreGiveFromISR and its associated fxns, but this is fine
 volatile bool scheduleCmdAsk = true;
 hw_timer_t * askRequestTimer = NULL;
@@ -86,61 +90,66 @@ void receiveCallback(const uint8_t *macAddr, const uint8_t *data, int dataLen)
   // Make sure we are null terminated
   buffer[msgLen] = 0;
   String recvd = String(buffer);
-  Serial.println(recvd);
+//   Serial.println(recvd);
   // Format the MAC address
   char macStr[18];
   formatMacAddress(macAddr, macStr, 18);
 
   // Send Debug log message to the serial port
   Serial.printf("Received message from: %s \n%s\n", macStr, buffer);
-  if (recvd[0] == 'A' && cmdRecvd == waitingCmd && random(100) < 30) //only take an ask if you don't have an ask already and only take it XX% of the time
-  {
-    recvd.remove(0,3);
-    cmdRecvd = recvd;
-    redrawCmdRecvd = true;
-    timerStart(askExpireTimer); //once you get an ask, a timer starts
-  }
-  else if (recvd[0] == 'D' && recvd.substring(3) == cmdRecvd)
-  {
-    timerWrite(askExpireTimer, 0);
-    timerStop(askExpireTimer);
-    cmdRecvd = waitingCmd;
-    progress = progress + 1;
-    
-    // code for the sender of the progress message to update their ask
-    if (progress == (int)(goal / numLevels) || progress == (int)(2 * goal / numLevels)) // if progress is 1/3 or 2/3 of the way
+  if (int(recvd.charAt(0))-48 == roomNo) {
+    if (recvd[2] == 'A' && cmdRecvd == waitingCmd && random(100) < 30) //only take an ask if you don't have an ask already and only take it XX% of the time
     {
-      // speed up game but ensure askTime and expireLength don't go below 1 second
-      askTime = max(1, askTime * 2 / 3); 
-      expireLength = max(1, expireLength * 2 / 3); 
-      timerAlarmWrite(askRequestTimer, askTime * 1000000, true); // send out an ask every askTime seconds
-      timerAlarmWrite(askExpireTimer, expireLength * 1000000, true); // set expiration time to expireLength seconds
-      Serial.println("ask time going downnn");
-      Serial.println(askTime);
-      Serial.println(expireLength);
+      recvd.remove(0,5);
+      cmdRecvd = recvd;
+      redrawCmdRecvd = true;
+      timerStart(askExpireTimer); //once you get an ask, a timer starts
     }
+    else if (recvd[2] == 'D' && recvd.substring(5) == cmdRecvd)
+    {
+      timerWrite(askExpireTimer, 0);
+      timerStop(askExpireTimer);
+      cmdRecvd = waitingCmd;
+      progress = progress + 1;
+      
+      // code for the sender of the progress message to update their ask
+      if (progress == (int)(goal / numLevels) || progress == (int)(2 * goal / numLevels)) // if progress is 1/3 or 2/3 of the way
+      {
+        // speed up game but ensure askTime and expireLength don't go below 1 second
+        askTime = max(1, askTime * 2 / 3); 
+        expireLength = max(1, expireLength * 2 / 3); 
+        timerAlarmWrite(askRequestTimer, askTime * 1000000, true); // send out an ask every askTime seconds
+        timerAlarmWrite(askExpireTimer, expireLength * 1000000, true); // set expiration time to expireLength seconds
+        Serial.println("ask time going downnn");
+        Serial.println(askTime);
+        Serial.println(expireLength);
+      }
 
-    broadcast("P: " + String(progress));
-    redrawCmdRecvd = true;
-    
-  }
-  else if (recvd[0] == 'P')
-  {
-    recvd.remove(0, 3);
-    progress = recvd.toInt();
-    redrawProgress = true;
-    // code for all the receivers of the progress message to update their ask time
-    if (progress == (int)(goal / numLevels) || progress == (int)(2 * goal / numLevels)) // if progress is 1/3 or 2/3 of the way
-    {
-      // speed up game but ensure askTime and expireLength don't go below 1 second
-      askTime = max(1, askTime * 2 / 3); 
-      expireLength = max(1, expireLength * 2 / 3); 
-      timerAlarmWrite(askRequestTimer, askTime * 1000000, true); // send out an ask every askTime seconds
-      timerAlarmWrite(askExpireTimer, expireLength * 1000000, true); // set expiration time to expireLength seconds
-      Serial.println("ask time going downnn");
-      Serial.println(askTime);
-      Serial.println(expireLength);
+      broadcast("P: " + String(progress));
+      redrawCmdRecvd = true;
     }
+    else if (recvd[2] == 'P')
+    {
+      recvd.remove(0,5);
+      progress = recvd.toInt();
+      redrawProgress = true;
+
+      // code for all the receivers of the progress message to update their ask time
+      if (progress == (int)(goal / numLevels) || progress == (int)(2 * goal / numLevels)) // if progress is 1/3 or 2/3 of the way
+      {
+        // speed up game but ensure askTime and expireLength don't go below 1 second
+        askTime = max(1, askTime * 2 / 3); 
+        expireLength = max(1, expireLength * 2 / 3); 
+        timerAlarmWrite(askRequestTimer, askTime * 1000000, true); // send out an ask every askTime seconds
+        timerAlarmWrite(askExpireTimer, expireLength * 1000000, true); // set expiration time to expireLength seconds
+        Serial.println("ask time going downnn");
+        Serial.println(askTime);
+        Serial.println(expireLength);
+      }
+    }
+  }
+  else {
+    Serial.printf("message room %d does not match %d\n", int(recvd.charAt(0))-48, roomNo);
   }
 }
 
@@ -158,6 +167,8 @@ void sentCallback(const uint8_t *macAddr, esp_now_send_status_t status)
 void broadcast(const String &message)
 // Emulates a broadcast
 {
+  char message_to_send[message.length() + 5];
+  sprintf(message_to_send, "%d %s", roomNo, message.c_str());  
   // Broadcast a message to every device in range
   uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
   esp_now_peer_info_t peerInfo = {};
@@ -166,9 +177,9 @@ void broadcast(const String &message)
   {
     esp_now_add_peer(&peerInfo);
   }
-  // Send message
-  esp_err_t result = esp_now_send(broadcastAddress, (const uint8_t *)message.c_str(), message.length());
 
+  // Send message
+  esp_err_t result = esp_now_send(broadcastAddress, (const uint8_t *)message_to_send, strlen(message_to_send));
 }
 
 void IRAM_ATTR sendCmd1(){
@@ -191,6 +202,7 @@ void IRAM_ATTR onAskExpireTimer(){
 
 void espnowSetup() {
   // Set ESP32 in STA mode to begin with
+
   delay(500);
   WiFi.mode(WIFI_STA);
   Serial.println("ESP-NOW Broadcast Demo");
@@ -232,6 +244,8 @@ void textSetup(){
   tft.setTextSize(2);
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_GREEN, TFT_BLACK);
+  drawRoomNo();
+
   drawControls();
 
   cmdRecvd = waitingCmd;
@@ -250,10 +264,15 @@ void timerSetup(){
   timerAlarmEnable(askExpireTimer);
   timerStop(askExpireTimer);
 
+  Serial.println("timer successfully setup");
+
 }
 void setup()
 {
   Serial.begin(115200);
+  // pick a random number for the room
+  roomNo = rand() % NUM_ROOMS;
+  Serial.println(roomNo);
 
   textSetup();
   buttonSetup();
@@ -270,7 +289,6 @@ String genCommand(){
 }
 
 void drawControls(){
-
   cmd1 = genCommand();
   cmd2 = genCommand();
   cmd1.indexOf(' ');
@@ -280,9 +298,21 @@ void drawControls(){
   tft.drawString(cmd2.substring(cmd2.indexOf(' ')+1), 0, 170+lineHeight, 2);
 }
 
+void drawRoomNo() {
+  /*
+  * Function for showing the user which room they are in.
+  */
+  
+  tft.fillScreen(TFT_BLACK);
+  tft.print("Room: ");
+  tft.println(roomNo);
+  delay(3000);
+  tft.fillScreen(TFT_BLACK);
+}
+
 void loop()
 {
-  
+  // Serial.println("loop");
   if (scheduleCmd1Send){
     broadcast("D: "+cmd1);
     scheduleCmd1Send = false;
