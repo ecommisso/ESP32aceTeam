@@ -90,7 +90,7 @@ void receiveCallback(const uint8_t *macAddr, const uint8_t *data, int dataLen)
   // Make sure we are null terminated
   buffer[msgLen] = 0;
   String recvd = String(buffer);
-  
+//   Serial.println(recvd);
   // Format the MAC address
   char macStr[18];
   formatMacAddress(macAddr, macStr, 18);
@@ -245,6 +245,7 @@ void textSetup(){
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_GREEN, TFT_BLACK);
   drawRoomNo();
+
   drawControls();
 
   cmdRecvd = waitingCmd;
@@ -262,7 +263,9 @@ void timerSetup(){
   timerAlarmWrite(askExpireTimer, expireLength*1000000, true);
   timerAlarmEnable(askExpireTimer);
   timerStop(askExpireTimer);
+
   Serial.println("timer successfully setup");
+
 }
 void setup()
 {
