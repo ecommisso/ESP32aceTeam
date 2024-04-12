@@ -19,11 +19,13 @@ This enhanced version of the 'ESP32 Team!' game introduces dynamic gameplay with
 - Room Feature: 3 separate rooms are created to categorize players into distinct groups.
 - Assignment Mechanism: Players are automatically and randomly assigned to one of the three rooms at the start, for an element of unpredictability within smaller groups.
 
+<img src="images/espace_rooms.jpeg" alt="rooms" width="500"/>
+
 ## Setup Instructions
 1. Flash the Game: Follow the instructions to flash the modified game onto your ESP32 device from this GitHub repository.
 2. Power On: Once flashed, power on the ESP32 device. The device will automatically assign you to a game room.
 3. Gameplay Begins: After room selection, the game starts automatically. Pay close attention to the instructions appearing on your ESP32 screen and respond as quickly as possible to progress.
-4. Progressing Through Levels: Successful actions will contribute to your overall progress. Once the collective progress reaches certain thresholds (1/3 and 2/3 of the goal), the game will level up, increasing the difficulty through faster ask times and shorter expiry lengths.
+4. Progressing Through Levels: Successful actions will contribute to your overall progress. Once the collective progress reaches certain thresholds (1/3 and 2/3 of the goal), the game will level up, increasing the difficulty through faster ask times and shorter expiry lengths. Notification of leveling up (the timer speeding up) is printed in the serial dialogue. If the gloabl progress decreases after reaching the level thresholds, the timer will slow down again to the previous level's timing.
 
 ## Gameplay Notes
 - Collaboration is Key: While individual quick responses are crucial, the game's nature encourages teamwork and communication among players, especially within the same room.
